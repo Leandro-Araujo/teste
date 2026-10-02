@@ -186,6 +186,7 @@ function buildWorld() {
     h *= smooth(28, 80, d);
     const dp = Math.hypot(x - POND[0], z - POND[1]); const pondCut = 1 - smooth(POND_R - 8, POND_R + 10, dp);
     h = lerp(h, Math.min(h, -4.5 + (dp / POND_R) * 2.2), pondCut);
+    const floor = -1.2 + Math.log(1 + Math.exp((h + 1.2) * 1.5)) / 1.5; h = lerp(floor, h, pondCut);
     h -= PATH[i] * .12;
     Hg[i] = h;
   }
@@ -257,13 +258,14 @@ function wrapDraw(g, w, h, x, y, fn) { for (const ox of [-w, 0, w]) for (const o
 
 function barkPine() {
   const W = 256, H = 512, [c, g] = cv(W, H), [hc, hg] = cv(W, H);
-  g.fillStyle = '#2a1a12'; g.fillRect(0, 0, W, H); hg.fillStyle = '#000'; hg.fillRect(0, 0, W, H);
-  for (let k = 0; k < 260; k++) {
-    const x = rand() * W, y = rand() * H, w = rr(22, 50), h = rr(28, 80), col = `rgb(${120 + rand() * 45 | 0},${68 + rand() * 30 | 0},${42 + rand() * 18 | 0})`;
-    wrapDraw(g, W, H, x, y, (X, Y) => { g.fillStyle = col; g.beginPath(); g.moveTo(X, Y + rr(0, 6)); g.lineTo(X + w, Y + rr(0, 8)); g.lineTo(X + w - rr(0, 6), Y + h); g.lineTo(X + rr(0, 6), Y + h - rr(0, 6)); g.fill(); hg.fillStyle = `rgb(${150 + rand() * 90 | 0},0,0)`; hg.beginPath(); hg.moveTo(X + 2, Y + 3); hg.lineTo(X + w - 2, Y + 4); hg.lineTo(X + w - 4, Y + h - 3); hg.lineTo(X + 3, Y + h - 4); hg.fill(); });
+  g.fillStyle = '#2a1c14'; g.fillRect(0, 0, W, H); hg.fillStyle = '#000'; hg.fillRect(0, 0, W, H);
+  for (let k = 0; k < 900; k++) {
+    const x = rand() * W, y = rand() * H, w = rr(12, 30), h = rr(18, 46), v = rr(.8, 1.15), col = `rgb(${92 * v | 0},${62 * v | 0},${44 * v | 0})`, hv = 120 + rand() * 120 | 0;
+    wrapDraw(g, W, H, x, y, (X, Y) => { g.fillStyle = col; g.beginPath(); g.moveTo(X, Y + rr(0, 4)); g.lineTo(X + w, Y + rr(0, 5)); g.lineTo(X + w - rr(0, 4), Y + h); g.lineTo(X + rr(0, 4), Y + h - rr(0, 4)); g.fill(); g.fillStyle = 'rgba(170,110,70,.18)'; g.fillRect(X + 2, Y + 2, w * .5, h * .3); hg.fillStyle = `rgb(${hv},0,0)`; hg.fillRect(X + 2, Y + 2, w - 4, h - 4); });
   }
-  sp(g, W, H, ['rgba(0,0,0,.2)', 'rgba(255,220,180,.12)', 'rgba(60,30,20,.3)'], 9000, 1, 2);
-  blot(g, W, H, '200,140,90', 10, 20, 60, .2);
+  for (let k = 0; k < 40; k++) { let x = rand() * W; g.strokeStyle = 'rgba(20,12,8,.7)'; g.lineWidth = rr(1.5, 3); g.beginPath(); g.moveTo(x, 0); for (let y = 0; y <= H; y += 20) { x += rr(-4, 4); g.lineTo(x, y); } g.stroke(); }
+  sp(g, W, H, ['rgba(0,0,0,.18)', 'rgba(255,220,180,.07)', 'rgba(60,40,25,.25)'], 9000, 1, 2);
+  blot(g, W, H, '60,70,40', 8, 15, 40, .25);
   return { map: T(c), nrm: normalFrom(hc, 3) };
 }
 function barkOak() {
@@ -296,7 +298,7 @@ function leafTex(kind) {
   const [c, g] = cv(256, 256);
   if (kind === 'pine') {
     g.strokeStyle = '#4a3020'; g.lineWidth = 4; g.beginPath(); g.moveTo(128, 256); g.quadraticCurveTo(122, 120, 128, 6); g.stroke();
-    for (let y = 250; y > 8; y -= 2.2) { const t = y / 256, half = 22 + 92 * t * (1 - t) * 1.9; for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const len = half * rr(.6, 1); g.strokeStyle = pick(['#1f3a22', '#2b4a2a', '#355a32', '#24402a', '#46703c']); g.lineWidth = rr(1.2, 2.2); g.beginPath(); g.moveTo(128 + rr(-2, 2), y); g.lineTo(128 + s * len, y - len * rr(.35, .7)); g.stroke(); } }
+    for (let y = 250; y > 8; y -= 3.2) { const t = y / 256, half = 20 + 80 * t * (1 - t) * 1.9; for (const s of [-1, 1]) for (let k = 0; k < 2; k++) { const len = half * rr(.55, 1); g.strokeStyle = pick(['#1f3a22', '#2b4a2a', '#355a32', '#24402a', '#46703c']); g.lineWidth = rr(1, 1.6); g.beginPath(); g.moveTo(128 + rr(-2, 2), y); g.lineTo(128 + s * len, y - len * rr(.35, .7)); g.stroke(); } }
     for (let k = 0; k < 10; k++) { const y = rr(40, 220), s = rand() < .5 ? -1 : 1; g.strokeStyle = '#3e2a1a'; g.lineWidth = 2; g.beginPath(); g.moveTo(128, y); g.lineTo(128 + s * rr(30, 60), y - rr(20, 40)); g.stroke(); }
   } else {
     const birch = kind === 'birch', cols = birch ? ['#6f9a3a', '#86ad45', '#9ac052', '#5c8834', '#a8c860'] : ['#3d6a2a', '#4a7a30', '#5a8a36', '#335c24', '#6a963e', '#2a4e20'];
@@ -339,7 +341,7 @@ function reedTex() { const [c, g] = cv(128, 256); for (let k = 0; k < 22; k++) {
 function groundTile(kind) {
   const S = 512, [c, g] = cv(S, S);
   if (kind === 'lawn') { g.fillStyle = '#4f7a2e'; g.fillRect(0, 0, S, S); blot(g, S, S, '90,140,50', 30, 20, 80, .35); blot(g, S, S, '40,70,25', 30, 20, 80, .35); for (let k = 0; k < 26000; k++) { const x = rand() * S, y = rand() * S; g.strokeStyle = pick(['#3d6624', '#5a8c34', '#6a9a3c', '#477a2a', '#7aa848']); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rr(-1.5, 1.5), y - rr(2, 5)); g.stroke(); } }
-  else if (kind === 'prairie') { g.fillStyle = '#7a8a3e'; g.fillRect(0, 0, S, S); blot(g, S, S, '170,150,80', 30, 20, 90, .4); blot(g, S, S, '70,100,40', 25, 20, 90, .4); for (let k = 0; k < 20000; k++) { const x = rand() * S, y = rand() * S; g.strokeStyle = pick(['#8a8a44', '#a89a58', '#6a7a36', '#b8a866', '#5a7030']); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rr(-3, 3), y - rr(3, 8)); g.stroke(); } }
+  else if (kind === 'prairie') { g.fillStyle = '#5c6a2c'; g.fillRect(0, 0, S, S); blot(g, S, S, '140,125,60', 30, 20, 90, .3); blot(g, S, S, '50,75,28', 25, 20, 90, .45); for (let k = 0; k < 20000; k++) { const x = rand() * S, y = rand() * S; g.strokeStyle = pick(['#6e7234', '#8a8044', '#55662c', '#968a50', '#4a5e26']); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rr(-3, 3), y - rr(3, 8)); g.stroke(); } }
   else if (kind === 'forest') { g.fillStyle = '#4a3a26'; g.fillRect(0, 0, S, S); blot(g, S, S, '60,80,30', 30, 20, 70, .55); blot(g, S, S, '30,22,14', 30, 10, 50, .5); for (let k = 0; k < 9000; k++) { const x = rand() * S, y = rand() * S, a = rand() * 6.3, l = rr(4, 12); g.strokeStyle = pick(['#8a5a30', '#a06a38', '#6a4424', '#b07a40', '#5a3a20']); g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); } for (let k = 0; k < 500; k++) { g.fillStyle = pick(['#9a5a24', '#b8742a', '#7a4a20', '#c08a3a', '#6a5a2a']); g.beginPath(); g.ellipse(rand() * S, rand() * S, rr(3, 7), rr(2, 4), rand() * 3, 0, 7); g.fill(); } for (let k = 0; k < 40; k++) { g.strokeStyle = '#3a2614'; g.lineWidth = rr(1.5, 3); const x = rand() * S, y = rand() * S, a = rand() * 6.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * rr(15, 40), y + Math.sin(a) * rr(15, 40)); g.stroke(); } }
   else { g.fillStyle = '#6e5638'; g.fillRect(0, 0, S, S); blot(g, S, S, '40,30,20', 30, 15, 60, .5); blot(g, S, S, '150,120,80', 20, 15, 60, .3); sp(g, S, S, ['#5a4430', '#8a7050', '#4a3826', '#9a8060'], 26000, 1, 2.4); for (let k = 0; k < 400; k++) { const x = rand() * S, y = rand() * S, r = rr(2, 6); g.fillStyle = pick(['#8a8478', '#a09888', '#6a645a', '#b4ac9c']); g.beginPath(); g.ellipse(x, y, r, r * rr(.6, 1), rand() * 3, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x - r * .4, y - r * .5, r * .5, r * .3); } }
   return T(c);
@@ -439,9 +441,9 @@ function pineCrown(t) {
     for (let b = 0; b < nb; b++) {
       const a = a0 + b / nb * Math.PI * 2 + rr(-.2, .2), drop = .25 + k * .25 + rr(-.1, .1), D = [Math.cos(a) * Math.cos(drop), -Math.sin(drop), Math.sin(a) * Math.cos(drop)], Uh = [-Math.sin(a), 0, Math.cos(a)];
       const base = [Math.cos(a) * .12, y, Math.sin(a) * .12], up = norm([D[0] * .5, .9, D[2] * .5]);
-      addCard(A, base, Uh, D, L * .62, L, true, () => up);
+      addCard(A, base, Uh, D, L * .5, L, true, () => up);
       const Uv = norm([D[1] * Uh[2] - D[2] * Uh[1], D[2] * Uh[0] - D[0] * Uh[2], D[0] * Uh[1] - D[1] * Uh[0]]);
-      addCard(A, base, Uv, D, L * .4, L * .92, true, () => norm([D[0], .4, D[2]]));
+      addCard(A, base, Uv, D, L * .32, L * .92, true, () => norm([D[0], .4, D[2]]));
     }
     a0 += 2.4;
   }
@@ -850,7 +852,7 @@ function drawCompass() {
 let mapBase = null;
 function drawMap() {
   const c = $('mapc'), g = c.getContext('2d'), S = c.width;
-  if (!mapBase) { const [mc, mg] = cv(S, S), img = mg.createImageData(S, S), d = img.data; for (let r = 0; r < S; r++) for (let q = 0; q < S; q++) { const x = -HALF + q / S * WS, z = -HALF + r / S * WS, [l, p, b, f] = biomeAt(x, z), pa = samp(PATH, x, z), h = heightAt(x, z), i = (r * S + q) * 4; let col = [l * 120 + p * 180 + b * 110 + f * 46, l * 170 + p * 170 + b * 140 + f * 80, l * 70 + p * 80 + b * 70 + f * 46]; const sh = 1 + (heightAt(x + 2, z) - h) * .06; col = col.map(v => v * sh); if (pa > .3) col = [150, 120, 80]; if (h < WATER_Y) col = [60, 110, 140]; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255; } mg.putImageData(img, 0, 0); for (const t of trees) { if (!t.alive) continue; mg.fillStyle = t.type === 'pine' ? 'rgba(20,50,25,.45)' : t.type === 'oak' ? 'rgba(40,70,25,.45)' : 'rgba(120,150,60,.45)'; mg.fillRect((t.x + HALF) / WS * S - 1, (t.z + HALF) / WS * S - 1, 2.4, 2.4); } mapBase = mc; }
+  if (!mapBase) { const [mc, mg] = cv(S, S), img = mg.createImageData(S, S), d = img.data; for (let r = 0; r < S; r++) for (let q = 0; q < S; q++) { const x = -HALF + q / S * WS, z = -HALF + r / S * WS, [l, p, b, f] = biomeAt(x, z), pa = samp(PATH, x, z), h = heightAt(x, z), i = (r * S + q) * 4; let col = [l * 120 + p * 180 + b * 110 + f * 46, l * 170 + p * 170 + b * 140 + f * 80, l * 70 + p * 80 + b * 70 + f * 46]; const sh = 1 + (heightAt(x + 2, z) - h) * .06; col = col.map(v => v * sh); if (pa > .3) col = [150, 120, 80]; if (h < WATER_Y && Math.hypot(x - POND[0], z - POND[1]) < POND_R + 8) col = [60, 110, 140]; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255; } mg.putImageData(img, 0, 0); for (const t of trees) { if (!t.alive) continue; mg.fillStyle = t.type === 'pine' ? 'rgba(20,50,25,.45)' : t.type === 'oak' ? 'rgba(40,70,25,.45)' : 'rgba(120,150,60,.45)'; mg.fillRect((t.x + HALF) / WS * S - 1, (t.z + HALF) / WS * S - 1, 2.4, 2.4); } mapBase = mc; }
   g.drawImage(mapBase, 0, 0); const W2 = (x, z) => [(x + HALF) / WS * S, (z + HALF) / WS * S];
   g.font = 'bold 22px "Zilla Slab", Georgia, serif'; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = 'rgba(20,14,8,.7)'; g.fillStyle = '#f3ead6';
   for (const [n, x, z] of [['Floresta', FOR[0] * 210, FOR[1] * 210], ['Bosque', BOS[0] * 190, BOS[1] * 190], ['Pradaria', PRA[0] * 200, PRA[1] * 200], ['Gramado', 0, -26]]) { const [a, b] = W2(x, z); g.strokeText(n, a, b); g.fillText(n, a, b); }
