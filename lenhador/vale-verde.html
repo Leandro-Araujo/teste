@@ -863,13 +863,13 @@ function drawMap() {
    Jogador, golpe, queda das árvores, toras
    ===================================================================== */
 function groundY(x, z) { let y = heightAt(x, z); if (Math.abs(x) < 4.6 && z > 4 && z < 6.5) y = Math.max(y, .5); return y; }
-function collidePlayer() {
+function collidePlayer(ox, oz) {
   const r = .35;
   nearTrees(P.x, P.z, 2, t => { if (!t.alive) return; const dx = P.x - t.x, dz = P.z - t.z, d = Math.hypot(dx, dz), m = r + t.r; if (d < m && d > 1e-4) { P.x = t.x + dx / d * m; P.z = t.z + dz / d * m; } });
   for (const [x, z, rr2] of obstacles) { const dx = P.x - x, dz = P.z - z, d = Math.hypot(dx, dz), m = r + rr2; if (d < m && d > 1e-4) { P.x = x + dx / d * m; P.z = z + dz / d * m; } }
   for (const b of boxes) { const qx = clamp(P.x, b[0], b[2]), qz = clamp(P.z, b[1], b[3]), dx = P.x - qx, dz = P.z - qz, d = Math.hypot(dx, dz); if (d < r) { if (d > 1e-5) { P.x = qx + dx / d * r; P.z = qz + dz / d * r; } else { const l = P.x - b[0], rt = b[2] - P.x, t = P.z - b[1], bt = b[3] - P.z, m = Math.min(l, rt, t, bt); if (m === l) P.x = b[0] - r; else if (m === rt) P.x = b[2] + r; else if (m === t) P.z = b[1] - r; else P.z = b[3] + r; } } }
   for (const s of segs) { const vx = s[2] - s[0], vz = s[3] - s[1], t = clamp(((P.x - s[0]) * vx + (P.z - s[1]) * vz) / (vx * vx + vz * vz), 0, 1), qx = s[0] + vx * t, qz = s[1] + vz * t, dx = P.x - qx, dz = P.z - qz, d = Math.hypot(dx, dz); if (d < r && d > 1e-5) { P.x = qx + dx / d * r; P.z = qz + dz / d * r; } }
-  const dp = Math.hypot(P.x - POND[0], P.z - POND[1]); if (heightAt(P.x, P.z) < WATER_Y - .7 && dp > 1e-3) { const lim = dp - .3; P.x = POND[0] + (P.x - POND[0]) / dp * lim; P.z = POND[1] + (P.z - POND[1]) / dp * lim; }
+  if (Math.hypot(P.x - POND[0], P.z - POND[1]) < POND_R + 10 && heightAt(P.x, P.z) < WATER_Y - .7) { P.x = ox; P.z = oz; }
   P.x = clamp(P.x, -HALF + 4, HALF - 4); P.z = clamp(P.z, -HALF + 4, HALF - 4);
 }
 function forward() { return [-Math.sin(P.yaw), -Math.cos(P.yaw)]; }
@@ -887,8 +887,9 @@ function updatePlayer(dt) {
   const wading = heightAt(P.x, P.z) < WATER_Y;
   let sp = 4.1; if (sprint && l > .1 && P.stam > 1) { sp = 7; P.stam -= dt * (P.boots ? 8.5 : 14); P.stamHold = .9; }
   if (wading) sp *= .5;
+  const ox = P.x, oz = P.z;
   if (l > .05) { const nx = (fx * mz + rvx * mx) / Math.max(1, l), nz = (fz * mz + rvz * mx) / Math.max(1, l); P.x += nx * sp * dt; P.z += nz * sp * dt; P.bob += dt * sp * 1.9; P.stepT -= dt * sp; if (P.stepT <= 0 && P.onGround) { P.stepT = 2.1; if (wading) SFX.splash(); else SFX.step(zoneIdx === 0 || zoneIdx === 1); } }
-  collidePlayer();
+  collidePlayer(ox, oz);
   const gy = groundY(P.x, P.z);
   if (take('Space') && P.onGround) { P.vy = 5.2; P.onGround = false; }
   P.vy -= 15 * dt; P.y += P.vy * dt; if (P.y <= gy) { P.y = gy; P.vy = 0; P.onGround = true; } else if (P.y - gy > .25) P.onGround = false;
