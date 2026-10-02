@@ -88,7 +88,7 @@
     <p>Um jipe 4x4, uma trilha de 2 km e onze postos de controle. A especial cruza a serra pelo desfiladeiro, atravessa o rio duas vezes pelo vau, entra no lamaçal e volta pelos bosques. O relógio começa quando você sai da largada.</p>
     <div class="keys">
       <span><kbd>W A S D</kbd> ou setas: dirigir</span><span><kbd>Espaço</kbd> freio de mão</span>
-      <span><kbd>R</kbd> voltar ao último posto</span><span><kbd>C</kbd> aproximar a câmera</span>
+      <span><kbd>R</kbd> voltar ao último posto</span><span><kbd>C</kbd> afastar a câmera</span>
     </div>
     <button id="play" class="btn" type="button" disabled>Largar</button>
     <div id="load">Levantando as montanhas…</div>
@@ -106,7 +106,7 @@
 
 <div id="touch" hidden>
   <div id="joy"><div id="knob"></div></div>
-  <div id="tb"><button type="button" data-k="Space">FREIO</button><button type="button" data-k="KeyR">VOLTAR</button><button type="button" data-k="KeyC">ZOOM</button></div>
+  <div id="tb"><button type="button" data-k="Space">FREIO</button><button type="button" data-k="KeyR">VOLTAR</button><button type="button" data-k="KeyC">CÂMERA</button></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -267,8 +267,8 @@ function initMaterials() {
   for (const k of ['pine', 'oak', 'birch']) { const b = barkTex(k); MAT.bark[k] = new THREE.MeshStandardMaterial({ map: b.map, normalMap: b.nrm, roughness: .95 }); const t = leafTex(k); MAT.leaf[k] = windify(new THREE.MeshLambertMaterial({ map: t, alphaTest: .42, side: THREE.DoubleSide, emissive: 0x0c1408 }), 'leaf', { tree: true }); MAT.leafDepth[k] = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: .42 }); }
   MAT.grass = windify(new THREE.MeshLambertMaterial({ map: grassTex(), alphaTest: .4, side: THREE.DoubleSide }), 'grass', { grass: true });
   const rk = rockTex(); MAT.rock = new THREE.MeshStandardMaterial({ map: rk.map, normalMap: rk.nrm, roughness: .9 });
-  MAT.water = new THREE.MeshStandardMaterial({ color: 0x2c5660, roughness: .05, metalness: .25, normalMap: waterNormal(), transparent: true, opacity: .8 }); MAT.water.normalScale.set(.5, .5);
-  MAT.puddle = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: .08, metalness: .3, transparent: true, opacity: .85, polygonOffset: true, polygonOffsetFactor: -2 });
+  MAT.water = new THREE.MeshStandardMaterial({ color: 0x1a4650, roughness: .14, metalness: .05, envMapIntensity: .45, normalMap: waterNormal(), transparent: true, opacity: .86 }); MAT.water.normalScale.set(.5, .5);
+  MAT.puddle = new THREE.MeshStandardMaterial({ color: 0x24180c, roughness: .18, metalness: 0, envMapIntensity: .35, transparent: true, opacity: .9, polygonOffset: true, polygonOffsetFactor: -2 });
   TX.tiles = ['grass', 'forest', 'rock', 'road', 'mud', 'sand', 'snow'].map(tile);
   TX.dust = puffTex('205,185,150'); TX.mud = puffTex('80,58,36'); TX.splash = puffTex('235,245,250'); TX.snow = puffTex('250,252,255');
   MAT.pole = new THREE.MeshStandardMaterial({ color: 0xdedad0, roughness: .5 }); MAT.stripe = new THREE.MeshStandardMaterial({ color: 0xc8302a, roughness: .5 });
@@ -653,7 +653,7 @@ function updateHUD(dt, sp) {
 function updateCamera(dt, sp) {
   const c = car, look = .6; let tx = c.x + c.vx * look, tz = c.z + c.vz * look, ty = c.y;
   const k = 1 - Math.exp(-4 * dt); camT.x += (tx - camT.x) * k; camT.z += (tz - camT.z) * k; camT.y += (ty - camT.y) * k;
-  const want = (zoomMode ? 1.55 : 1) * VH / clamp(26 + sp * .32, 26, 36); zoom += (want - zoom) * (1 - Math.exp(-2.5 * dt)); cam.zoom = zoom; cam.updateProjectionMatrix();
+  const want = (zoomMode ? .62 : 1) * VH / clamp(19 + sp * .26, 19, 27); zoom += (want - zoom) * (1 - Math.exp(-2.5 * dt)); cam.zoom = zoom; cam.updateProjectionMatrix();
   const sx = shake > 0 ? rr(-1, 1) * shake * .5 : 0; shake = Math.max(0, shake - dt * 2.5);
   cam.position.set(camT.x + CAMDIR.x * CAMD + sx, camT.y + CAMDIR.y * CAMD, camT.z + CAMDIR.z * CAMD); cam.lookAt(camT.x + sx, camT.y, camT.z);
   const tex = 170 / 2048, sxx = Math.round(camT.x / tex) * tex, szz = Math.round(camT.z / tex) * tex;
