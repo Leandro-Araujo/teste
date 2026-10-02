@@ -1,0 +1,439 @@
+<title>Resgate sob o Fuji</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
+<style>
+  /* tela única em pixel art cinza; helicóptero e pessoas são o único branco puro; HUD em faixa preta acima da cena */
+  :root {
+    color-scheme: dark;
+    --bg: #0c0c0c;
+    --ink: #ffffff;
+    --mid: #9a9a9a;
+    --dim: #4a4a4a;
+    --line: #2c2c2c;
+    --px: 'DotGothic16', 'MS Gothic', 'Osaka', 'Courier New', monospace;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--px); user-select: none; -webkit-user-select: none; }
+  #wrap { position: fixed; inset: 0; display: grid; place-items: center; padding-top: env(safe-area-inset-top, 0px); }
+  #frame { display: grid; gap: 0; }
+  #hud { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 6px 10px; background: #000; border: 2px solid var(--line); border-bottom: 0; font-size: 15px; letter-spacing: .04em; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+  #hud b { font-weight: 400; color: var(--ink); }
+  #hud span { color: var(--mid); white-space: nowrap; }
+  #load { display: inline-flex; align-items: center; gap: 6px; }
+  #loadbar { width: 70px; height: 8px; border: 1px solid var(--mid); position: relative; }
+  #loadbar i { position: absolute; inset: 1px auto 1px 1px; background: var(--ink); width: 0; }
+  #game { display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 2px solid var(--line); background: #000; touch-action: none; }
+  .screen { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .72); z-index: 5; }
+  .card { max-width: 540px; display: grid; gap: 14px; justify-items: center; text-align: center; border: 2px solid var(--ink); background: #000; padding: 22px 22px 20px; box-shadow: 6px 6px 0 var(--dim); }
+  .card h1 { margin: 0; font: 400 clamp(30px, 7vw, 46px)/1.1 var(--px); letter-spacing: .02em; text-wrap: balance; }
+  .card h1 small { display: block; font-size: 15px; color: var(--mid); letter-spacing: .3em; margin-bottom: 6px; }
+  .card p { margin: 0; color: var(--mid); font-size: 15px; line-height: 1.6; max-width: 44ch; }
+  .card ul { margin: 0; padding: 0; list-style: none; text-align: left; color: var(--mid); font-size: 14px; line-height: 1.7; }
+  .card ul b { color: var(--ink); font-weight: 400; }
+  .btn { font: 400 18px var(--px); color: #000; background: var(--ink); border: 0; padding: 10px 26px; cursor: pointer; box-shadow: 4px 4px 0 var(--dim); }
+  .btn.alt { background: #000; color: var(--ink); border: 2px solid var(--ink); }
+  .btn:focus-visible { outline: 2px dashed var(--ink); outline-offset: 4px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  #touch { position: fixed; inset: auto 0 0 0; height: 0; z-index: 3; }
+  #touch button { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 64px; height: 64px; border: 2px solid var(--ink); background: rgba(0, 0, 0, .55); color: var(--ink); font: 400 20px var(--px); touch-action: none; }
+  #touch button.on { background: rgba(255, 255, 255, .35); }
+  @media (max-width: 600px) { #hud { font-size: 12px; } }
+  @media (prefers-reduced-motion: reduce) { .card { box-shadow: none; } }
+</style>
+
+<div id="wrap"><div id="frame">
+  <div id="hud"><span>FASE <b id="hLvl">1</b></span><span>SALVOS <b id="hSaved">0</b>/<b id="hNeed">4</b></span><span>NA CORDA <b id="hRope">0</b></span><span>PERDIDOS <b id="hLost">0</b></span><span id="load">PESO <span id="loadbar"><i id="loadi"></i></span></span></div>
+  <canvas id="game" width="320" height="180" aria-label="Resgate sob o Fuji: helicóptero de resgate em cidade japonesa"></canvas>
+</div></div>
+
+<div id="title" class="screen">
+  <div class="card">
+    <h1><small>救助ヘリ · RESGATE</small>Resgate sob o Fuji</h1>
+    <p>A cidade ao pé do Fuji está em chamas. Desça a corda até quem pede socorro nos telhados. Cada pessoa resgatada se agarra nos pés da anterior, e a fila fica cada vez mais pesada.</p>
+    <ul>
+      <li><b>↑ ou W</b> sobe · <b>← →</b> ou <b>A D</b> move · <b>↓ ou S</b> desce</li>
+      <li>Encoste a ponta da fila na cabeça de quem espera para pegá-lo.</li>
+      <li>Se alguém da fila bater num prédio, ele e quem está abaixo caem.</li>
+      <li>Se o helicóptero bater num prédio, cai com todos.</li>
+      <li>Leve todos ao heliponto do hospital, à direita, e pouse para terminar.</li>
+    </ul>
+    <button id="play" class="btn" type="button">Decolar</button>
+  </div>
+</div>
+
+<div id="end" class="screen" hidden>
+  <div class="card">
+    <h1 id="eTitle">Missão cumprida</h1>
+    <p id="eText"></p>
+    <div class="row"><button id="eRetry" class="btn alt" type="button">Repetir fase</button><button id="eNext" class="btn" type="button">Próxima fase</button></div>
+  </div>
+</div>
+
+<div id="touch" hidden>
+  <button type="button" data-k="ArrowLeft" style="left:16px" aria-label="Esquerda">◀</button>
+  <button type="button" data-k="ArrowRight" style="left:92px" aria-label="Direita">▶</button>
+  <button type="button" data-k="ArrowDown" style="right:92px" aria-label="Descer">▼</button>
+  <button type="button" data-k="ArrowUp" style="right:16px" aria-label="Subir">▲</button>
+</div>
+
+<script>
+(function () {
+'use strict';
+const $ = id => document.getElementById(id);
+const W0 = 320, H0 = 180, GY = 166;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v, lerp = (a, b, t) => a + (b - a) * t;
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let R = mulberry(1); const rr = (a, b) => a + R() * (b - a), ri = (a, b) => Math.floor(rr(a, b + 1)), pick = a => a[(R() * a.length) | 0];
+
+/* =====================================================================
+   Paleta em escala de cinza (o branco puro fica para helicóptero e pessoas)
+   ===================================================================== */
+const PAL = ['#0b0b0b', '#1c1c1c', '#2e2e2e', '#424242', '#575757', '#6e6e6e', '#868686', '#a0a0a0', '#bcbcbc', '#d4d4d4', '#ffffff'];
+const PRGB = PAL.map(h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const TR = 255;
+// camada de pixels indexados
+function layer(w, h) { return { w, h, d: new Uint8Array(w * h).fill(TR) }; }
+function px(L, x, y, c) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= L.w || y >= L.h) return; L.d[y * L.w + x] = c; }
+function rect(L, x, y, w, h, c) { x |= 0; y |= 0; for (let j = Math.max(0, y); j < Math.min(L.h, y + h); j++) for (let i = Math.max(0, x); i < Math.min(L.w, x + w); i++) L.d[j * L.w + i] = c; }
+function dith(x, y, a, b, t) { return BAYER[(x & 3) + (y & 3) * 4] < t * 16 ? b : a; }
+function drect(L, x, y, w, h, a, b, t) { x |= 0; y |= 0; for (let j = Math.max(0, y); j < Math.min(L.h, y + h); j++) for (let i = Math.max(0, x); i < Math.min(L.w, x + w); i++) L.d[j * L.w + i] = dith(i, j, a, b, typeof t === 'function' ? t(i, j) : t); }
+function hline(L, x0, x1, y, c) { for (let x = Math.round(x0); x <= Math.round(x1); x++) px(L, x, y, c); }
+function vline(L, x, y0, y1, c) { for (let y = Math.round(y0); y <= Math.round(y1); y++) px(L, x, y, c); }
+function line(L, x0, y0, x1, y1, c) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0 || 1; for (let k = 0; k <= n; k++) px(L, Math.round(lerp(x0, x1, k / n)), Math.round(lerp(y0, y1, k / n)), c); }
+function poly(L, pts, fill) { let y0 = 1e9, y1 = -1e9; for (const p of pts) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); } for (let y = Math.ceil(y0); y <= Math.floor(y1); y++) { const xs = []; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; if ((a[1] <= y && b[1] > y) || (b[1] <= y && a[1] > y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); } xs.sort((p, q) => p - q); for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.ceil(xs[k]); x <= Math.floor(xs[k + 1]); x++) px(L, x, y, typeof fill === 'function' ? fill(x, y) : fill); } }
+function disc(L, cx, cy, r, fill) { for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) if ((x + .5 - cx) ** 2 + (y + .5 - cy) ** 2 <= r * r) px(L, x, y, typeof fill === 'function' ? fill(x, y) : fill); }
+function toCanvas(L) { const c = document.createElement('canvas'); c.width = L.w; c.height = L.h; const g = c.getContext('2d'), img = g.createImageData(L.w, L.h), o = img.data; for (let i = 0; i < L.d.length; i++) { const v = L.d[i]; if (v === TR) continue; const p = PRGB[v]; o[i * 4] = p[0]; o[i * 4 + 1] = p[1]; o[i * 4 + 2] = p[2]; o[i * 4 + 3] = 255; } g.putImageData(img, 0, 0); return c; }
+function outline(L, c = 0) { const o = new Uint8Array(L.d); for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) { if (L.d[y * L.w + x] !== TR) continue; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < L.w && Y < L.h && L.d[Y * L.w + X] !== TR && L.d[Y * L.w + X] !== c) { o[y * L.w + x] = c; break; } } } L.d = o; return L; }
+// texto em pixels (kanji das placas), binarizado sem serrilhado
+function textPx(L, s, x, y, size, c, vertical) { const cv2 = document.createElement('canvas'); cv2.width = size * 2 + 4; cv2.height = size * 2 + 4; const g = cv2.getContext('2d'); for (let k = 0; k < s.length; k++) { g.clearRect(0, 0, cv2.width, cv2.height); g.fillStyle = '#fff'; g.font = `${size}px DotGothic16, "MS Gothic", "Hiragino Sans", "Noto Sans CJK JP", sans-serif`; g.textBaseline = 'top'; g.fillText(s[k], 1, 1); const d = g.getImageData(0, 0, cv2.width, cv2.height).data; for (let j = 0; j < cv2.height; j++) for (let i = 0; i < cv2.width; i++) if (d[(j * cv2.width + i) * 4 + 3] > 120) px(L, vertical ? x + i : x + i + k * (size + 1), vertical ? y + j + k * (size + 1) : y + j, c); } }
+
+/* =====================================================================
+   Fases
+   ===================================================================== */
+const LEVELS = [
+  { name: 'Bairro de Asakusa', people: 6, need: 4, width: 1500, wind: 0, tall: 1, seed: 11 },
+  { name: 'Shinjuku em chamas', people: 9, need: 6, width: 1850, wind: 12, tall: 1.25, seed: 23 },
+  { name: 'Tempestade em Yokohama', people: 12, need: 8, width: 2200, wind: 22, tall: 1.45, seed: 37 },
+];
+let LV = 0, WORLD = null;
+const solids = [], waiting = [], fires = [], signs = [];
+let padStart, padEnd, layers = {};
+
+function buildLevel(li) {
+  const lv = LEVELS[li]; R = mulberry(lv.seed); solids.length = 0; waiting.length = 0; fires.length = 0;
+  const WW = lv.width;
+  const world = layer(WW, H0), mid = layer(Math.ceil(W0 + (WW - W0) * .5) + 8, H0), far = layer(Math.ceil(W0 + (WW - W0) * .22) + 8, H0), fuji = layer(Math.ceil(W0 + (WW - W0) * .06) + 8, H0), sky = layer(W0, H0);
+  // céu de entardecer, faixas pontilhadas
+  for (let y = 0; y < H0; y++) for (let x = 0; x < W0; x++) { const t = y / 140, band = Math.floor(t * 4), f = t * 4 - band; sky.d[y * W0 + x] = dith(x, y, 2 + Math.min(band, 3), 3 + Math.min(band, 3), f); }
+  disc(sky, 252, 46, 17, (x, y) => dith(x, y, 8, 9, .5)); for (let y = 30; y < 64; y += 4) hline(sky, 234, 270, y, TR);
+  for (let k = 0; k < 6; k++) { const cx = rr(0, W0), cy = rr(14, 70), w = rr(26, 60); for (let i = 0; i < 4; i++) disc(sky, cx + i * w / 5, cy - (i % 2) * 3, rr(4, 8), (x, y) => dith(x, y, 5, 6, .5)); hline(sky, cx - 4, cx + w, cy + 6, 4); }
+  // Monte Fuji
+  const fx = fuji.w / 2, fbase = GY - 6, ftop = 36, fw = 230;
+  poly(fuji, [[fx - fw, fbase], [fx - 90, fbase - 40], [fx - 22, ftop + 4], [fx - 12, ftop], [fx + 12, ftop], [fx + 22, ftop + 4], [fx + 90, fbase - 40], [fx + fw, fbase]], (x, y) => { const sh = x < fx ? .25 : .55; return dith(x, y, 3, 4, clamp((y - ftop) / 120 + sh * .3, 0, 1)); });
+  poly(fuji, [[fx - 22, ftop + 4], [fx - 12, ftop], [fx + 12, ftop], [fx + 22, ftop + 4], [fx + 40, ftop + 22], [fx + 30, ftop + 26], [fx + 22, ftop + 21], [fx + 14, ftop + 30], [fx + 6, ftop + 22], [fx - 4, ftop + 33], [fx - 12, ftop + 24], [fx - 22, ftop + 30], [fx - 30, ftop + 22], [fx - 40, ftop + 22]], (x, y) => x < fx ? 9 : dith(x, y, 9, 8, .5));
+  for (let k = 0; k < 8; k++) line(fuji, fx + rr(-20, 20), ftop + rr(26, 34), fx + rr(-60, 60), ftop + rr(50, 80), 4);
+  // colinas e cidade distante
+  for (let x = 0; x < far.w; x++) { const h = 22 + Math.sin(x / 37) * 7 + Math.sin(x / 13) * 3; vline(far, x, GY - h, H0, dith(x, 0, 3, 2, .5)); }
+  for (let x = 4; x < far.w; x += ri(10, 22)) { const w = ri(6, 14), h = ri(14, 44); rect(far, x, GY - h, w, h, 2); for (let y = GY - h + 3; y < GY - 4; y += 4) for (let i = x + 2; i < x + w - 1; i += 3) if (R() < .35) px(far, i, y, 4); if (R() < .15) { vline(far, x + w / 2, GY - h - 12, GY - h, 2); px(far, x + w / 2, GY - h - 12, 6); } }
+  // camada média: pagodes, torii, pinheiros
+  for (let x = 20; x < mid.w; x += ri(40, 90)) {
+    const kind = R();
+    if (kind < .3) { const cx = x, base = GY - 2; let y = base, w = 22; for (let t = 0; t < 4; t++) { rect(mid, cx - w / 2 + 3, y - 8, w - 6, 8, 3); poly(mid, [[cx - w / 2 - 3, y - 7], [cx + w / 2 + 3, y - 7], [cx + w / 2 - 2, y - 11], [cx - w / 2 + 2, y - 11]], 1); px(mid, cx - w / 2 - 4, y - 8, 1); px(mid, cx + w / 2 + 4, y - 8, 1); y -= 11; w -= 4; } vline(mid, cx, y - 12, y, 1); for (let k = 0; k < 4; k++) hline(mid, cx - 1, cx + 1, y - 3 - k * 2, 1); }
+    else if (kind < .5) { const cx = x; rect(mid, cx - 10, GY - 24, 2, 24, 2); rect(mid, cx + 8, GY - 24, 2, 24, 2); rect(mid, cx - 14, GY - 26, 28, 2, 2); px(mid, cx - 15, GY - 27, 2); px(mid, cx + 14, GY - 27, 2); rect(mid, cx - 11, GY - 20, 22, 2, 2); }
+    else { const cx = x, h = ri(16, 28); line(mid, cx, GY, cx + rr(-4, 4), GY - h, 2); for (let k = 0; k < 4; k++) { const yy = GY - h + k * 5, w = 12 - k; for (let i = -w; i <= w; i++) px(mid, cx + i + rr(-1, 1), yy + (Math.abs(i) > w - 2 ? 1 : 0), 2); hline(mid, cx - w + 2, cx + w - 2, yy + 1, 3); } }
+  }
+  for (let x = 0; x < mid.w; x++) vline(mid, x, GY - 2, H0, 2);
+  // chão
+  for (let y = GY; y < H0; y++) for (let x = 0; x < WW; x++) world.d[y * WW + x] = y === GY ? 3 : dith(x, y, 0, 1, .2);
+  for (let x = 0; x < WW; x += 12) hline(world, x, x + 5, GY + 6, 4);
+  // heliporto de saída
+  padStart = { x0: 14, x1: 62, y: GY - 3 }; heliPad(world, padStart, false);
+  rect(world, 66, GY - 18, 26, 18, 3); poly(world, [[64, GY - 18], [94, GY - 18], [90, GY - 24], [68, GY - 24]], 2); rect(world, 72, GY - 12, 14, 12, 1); for (let y = GY - 11; y < GY; y += 2) hline(world, 73, 84, y, 2);
+  // hospital e heliponto final
+  const hx = WW - 70; padEnd = { x0: hx - 64, x1: hx - 14, y: GY - 3 }; heliPad(world, padEnd, true);
+  building(world, hx, GY - 74, 62, 74, { hospital: true });
+  // a cidade: casas, prédios, pagodes
+  let x = 120; const end = padEnd.x0 - 20;
+  const spots = [];
+  while (x < end - 50) {
+    const r = R();
+    if (r < .38) { const w = ri(30, 46); house(world, x, w); spots.push({ x0: x + 4, x1: x + w - 4, y: null, house: true, solid: solids[solids.length - 1] }); x += w + ri(8, 22); }
+    else if (r < .9) { const w = ri(26, 44), h = Math.min(132, Math.round(ri(46, 104) * lv.tall)); building(world, x, GY - h, w, h, {}); spots.push({ x0: x + 4, x1: x + w - 4, y: GY - h, b: true }); x += w + ri(14, 34); }
+    else { const w = 34; pagoda(world, x + w / 2); x += w + ri(14, 26); }
+    if (R() < .45) { tree(world, x - 6); }
+  }
+  // fiação entre postes (decoração)
+  for (let px0 = 100; px0 < WW - 100; px0 += 70) { vline(world, px0, GY - 34, GY, 2); hline(world, px0 - 3, px0 + 3, GY - 32, 2); }
+  // pessoas esperando resgate
+  const roofs = spots.filter(s => s.b), others = spots.filter(s => !s.b);
+  const order = [...roofs.sort(() => R() - .5), ...others];
+  for (let k = 0; k < lv.people; k++) {
+    const s = order[k % order.length], px1 = rr(s.x0 + 2, s.x1 - 2);
+    let y = s.y; if (y == null) y = GY;
+    if (s.house) { waiting.push({ x: px1, y: GY, t: R() * 4, state: 'wait', ground: true }); continue; }
+    waiting.push({ x: px1 + (k >= order.length ? 4 : 0), y, t: R() * 4, state: 'wait' });
+    if (R() < .7) fires.push({ x: px1 + rr(-6, 6), y });
+  }
+  layers = { sky: toCanvas(sky), fuji: toCanvas(fuji), far: toCanvas(far), mid: toCanvas(mid), world: toCanvas(world) };
+  WORLD = { w: WW, lv };
+}
+function heliPad(L, p, end) {
+  rect(L, p.x0, p.y, p.x1 - p.x0, 3, 6); hline(L, p.x0, p.x1 - 1, p.y, 9); const cx = (p.x0 + p.x1) / 2 | 0;
+  for (let i = -6; i <= 6; i++) { px(L, cx + i, p.y - 1, 8); } rect(L, cx - 4, p.y - 10, 1, 8, 9); rect(L, cx + 3, p.y - 10, 1, 8, 9); hline(L, cx - 4, cx + 3, p.y - 6, 9);
+  for (const sx of [p.x0, p.x1 - 1]) { vline(L, sx, p.y - 4, p.y, 7); px(L, sx, p.y - 5, 9); }
+}
+function building(L, x, y, w, h, o) {
+  const body = o.hospital ? 5 : pick([2, 3, 3, 4]), win = body + 3, lit = 8;
+  rect(L, x, y, w, h, body); hline(L, x, x + w - 1, y, body + 2); vline(L, x, y, y + h - 1, body + 1); vline(L, x + w - 1, y, y + h - 1, body - 1);
+  for (let wy = y + 5; wy < y + h - 8; wy += 6) { hline(L, x + 1, x + w - 2, wy - 2, body - 1); for (let wx = x + 3; wx < x + w - 4; wx += 5) { const r = R(); if (r < .2) continue; const c = r > .86 ? lit : win; rect(L, wx, wy, 3, 3, c); px(L, wx, wy, c + 1 > 9 ? 9 : c + 1); if (r < .3) rect(L, wx, wy + 2, 3, 1, body - 1); } }
+  rect(L, x + w / 2 - 3, y + h - 7, 6, 7, 1); rect(L, x + w / 2 - 2, y + h - 6, 4, 6, 0);
+  solids.push({ x, y, w, h, kind: 'b' });
+  if (o.hospital) { rect(L, x + w / 2 - 6, y + 10, 12, 4, 9); rect(L, x + w / 2 - 2, y + 6, 4, 12, 9); textPx(L, '病院', x + 6, y + 26, 10, 9); return; }
+  if (w >= 30 && R() < .65) { const sx = R() < .5 ? x + 2 : x + w - 12, sh = ri(28, 42); rect(L, sx, y + 8, 10, sh, 8); rect(L, sx + 1, y + 9, 8, sh - 2, 1); textPx(L, pick(['寿司', 'ホテル', '酒場', '薬局', 'カラオケ', 'ラーメン', '電気', '銀行', '本屋', '湯']).slice(0, Math.floor((sh - 2) / 9)), sx + 1, y + 10, 8, 8, true); }
+  if (R() < .5) { const tx = x + rr(4, w - 12) | 0; rect(L, tx, y - 7, 8, 5, body + 1); hline(L, tx, tx + 7, y - 7, body + 3); vline(L, tx + 1, y - 2, y, body); vline(L, tx + 6, y - 2, y, body); solids.push({ x: tx, y: y - 7, w: 8, h: 7, kind: 'tank' }); }
+  if (R() < .35) { const ax = x + rr(3, w - 3) | 0; vline(L, ax, y - 14, y, body + 2); hline(L, ax - 2, ax + 2, y - 10, body + 2); }
+}
+function house(L, x, w) {
+  const wallH = ri(11, 15), roofH = ri(9, 12), top = GY - wallH - roofH;
+  rect(L, x, GY - wallH, w, wallH, 7); hline(L, x, x + w - 1, GY - wallH, 5); rect(L, x, GY - 3, w, 3, 4);
+  for (let px0 = x + 3; px0 < x + w - 3; px0 += 10) { rect(L, px0, GY - wallH + 3, 7, wallH - 6, 9); for (let i = 0; i < 7; i += 2) vline(L, px0 + i, GY - wallH + 3, GY - 4, 6); hline(L, px0, px0 + 6, GY - wallH + 6, 6); }
+  vline(L, x, GY - wallH, GY, 3); vline(L, x + w - 1, GY - wallH, GY, 3);
+  const e = 5; poly(L, [[x - e, GY - wallH], [x + w + e - 1, GY - wallH], [x + w - 5, top], [x + 5, top]], (xx, yy) => (yy - top) % 3 === 2 ? 3 : dith(xx, yy, 1, 2, .35));
+  px(L, x - e - 1, GY - wallH - 1, 1); px(L, x - e - 2, GY - wallH - 2, 1); px(L, x + w + e, GY - wallH - 1, 1); px(L, x + w + e + 1, GY - wallH - 2, 1);
+  rect(L, x + 4, top - 2, w - 8, 2, 0); rect(L, x + 3, top - 4, 2, 3, 0); rect(L, x + w - 5, top - 4, 2, 3, 0);
+  solids.push({ x: x - e, y: top - 2, w: w + 2 * e, h: GY - top + 2, kind: 'h' });
+}
+function pagoda(L, cx) {
+  let y = GY, w = 32; const base = GY; rect(L, cx - 18, base - 3, 36, 3, 4);
+  for (let t = 0; t < 5; t++) { rect(L, cx - w / 2 + 4, y - 11, w - 8, 9, 6); for (let i = cx - w / 2 + 6; i < cx + w / 2 - 4; i += 3) vline(L, i, y - 9, y - 4, 8); poly(L, [[cx - w / 2 - 3, y - 10], [cx + w / 2 + 3, y - 10], [cx + w / 2 - 3, y - 15], [cx - w / 2 + 3, y - 15]], (x, yy) => dith(x, yy, 1, 2, .3)); px(L, cx - w / 2 - 4, y - 11, 1); px(L, cx + w / 2 + 4, y - 11, 1); solids.push({ x: cx - w / 2 - 3, y: y - 15, w: w + 6, h: 15, kind: 'p' }); y -= 15; w -= 5; }
+  vline(L, cx, y - 16, y, 2); for (let k = 0; k < 6; k++) hline(L, cx - 1, cx + 1, y - 2 - k * 2, 3); solids.push({ x: cx - 1, y: y - 16, w: 3, h: 16, kind: 'p' });
+}
+function tree(L, x) { const h = ri(14, 22); line(L, x, GY, x + rr(-3, 3), GY - h, 1); for (let k = 0; k < 3; k++) { const yy = GY - h + k * 6, w = 9 - k; for (let i = -w; i <= w; i++) { px(L, x + i, yy, 1); px(L, x + i, yy + 1, i % 3 ? 2 : 1); } } }
+
+/* =====================================================================
+   Sprites brancos (helicóptero e pessoas)
+   ===================================================================== */
+const SPR = {};
+function makeSprites() {
+  const heli = (frame) => {
+    const L = layer(44, 22), cx = 16;
+    poly(L, [[cx - 9, 9], [cx + 8, 8], [cx + 13, 11], [cx + 13, 15], [cx + 9, 17], [cx - 9, 17], [cx - 12, 14], [cx - 11, 10]], 10);
+    poly(L, [[cx + 6, 9], [cx + 12, 11], [cx + 12, 14], [cx + 6, 14]], 0); hline(L, cx + 8, cx + 10, 10, 6);
+    rect(L, cx - 6, 11, 3, 3, 0); rect(L, cx - 1, 11, 3, 3, 0); hline(L, cx - 9, cx + 9, 16, 7);
+    poly(L, [[cx - 12, 11], [cx - 26, 11], [cx - 28, 9], [cx - 28, 13], [cx - 12, 14]], 10); vline(L, cx - 27, 5, 16, frame ? 10 : 8); hline(L, cx - 30, cx - 25, frame ? 7 : 14, 10);
+    hline(L, cx - 8, cx + 10, 20, 10); vline(L, cx - 5, 17, 20, 10); vline(L, cx + 6, 17, 20, 10); px(L, cx + 11, 19, 10);
+    rect(L, cx - 1, 5, 4, 3, 10); vline(L, cx + 1, 3, 5, 0);
+    if (frame === 0) hline(L, cx - 15, cx + 18, 3, 10); else { hline(L, cx - 6, cx + 8, 3, 10); hline(L, cx - 20, cx - 9, 2, 9); hline(L, cx + 11, cx + 24, 2, 9); }
+    return toCanvas(outline(L, 0));
+  };
+  SPR.heli = [heli(0), heli(1)];
+  const person = (pose, f) => {
+    const L = layer(9, 13), c = 4;
+    rect(L, c - 1, 1, 3, 3, 10); px(L, c - 1, 2, 0); px(L, c + 1, 2, 0);
+    rect(L, c - 1, 4, 3, 4, 10); hline(L, c - 1, c + 1, 6, 0);
+    if (pose === 'wave') { px(L, c - 2, 4, 10); px(L, c - 3, 3 - f, 10); px(L, c - 3, 2 - f, 10); px(L, c + 2, 4, 10); px(L, c + 3, 3 + f - 1, 10); px(L, c + 3, 2 + f - 1, 10); vline(L, c - 1, 8, 11, 10); vline(L, c + 1, 8, 11, 10); }
+    else if (pose === 'hang') { vline(L, c - 1, 0, 3, 10); vline(L, c + 1, 0, 3, 10); rect(L, c - 1, 1, 3, 3, 10); px(L, c - 1, 2, 0); px(L, c + 1, 2, 0); px(L, c, 0, 10); vline(L, c - 1, 8, 11 + f, 10); vline(L, c + 1, 8, 12 - f, 10); }
+    else if (pose === 'fall') { hline(L, c - 4, c - 2, 4 + f, 10); hline(L, c + 2, c + 4, 4 - f, 10); px(L, c - 2, 9, 10); px(L, c - 3, 10, 10); px(L, c + 2, 9, 10); px(L, c + 3, 10, 10); vline(L, c - 1, 8, 8, 10); vline(L, c + 1, 8, 8, 10); }
+    else if (pose === 'walk') { px(L, c - 2, 5, 10); px(L, c + 2, 5, 10); vline(L, c - 1 - f, 8, 11, 10); vline(L, c + 1 + f, 8, 11, 10); }
+    return toCanvas(outline(L, 0));
+  };
+  for (const p of ['wave', 'hang', 'fall', 'walk']) SPR[p] = [0, 1].map(f => person(p, f));
+  { const L = layer(13, 6); rect(L, 1, 2, 3, 3, 10); rect(L, 4, 3, 5, 2, 10); px(L, 9, 2, 10); px(L, 10, 2, 10); px(L, 9, 4, 10); px(L, 10, 4, 10); px(L, 2, 3, 0); SPR.dead = toCanvas(outline(L, 0)); }
+  { const L = layer(5, 7); vline(L, 2, 0, 6, 7); hline(L, 0, 4, 2, 7); SPR.cross = toCanvas(L); }
+}
+
+/* =====================================================================
+   Estado e física
+   ===================================================================== */
+const ROPE_N = 4, ROPE_SEG = 5, BODY = 11;
+let heli, nodes, segs, persons, fallers, walkers, dead, parts, state = 'title', camX = 0, T = 0, saved = 0, lost = 0, msgT = 0, msg = '', releaseCd = 0, crashT = 0, endShown = false;
+function resetLevel() {
+  buildLevel(LV);
+  heli = { x: (padStart.x0 + padStart.x1) / 2, y: padStart.y - 11, vx: 0, vy: 0, tilt: 0, landed: true, crashed: false, spin: 0 };
+  nodes = []; segs = []; for (let i = 0; i <= ROPE_N; i++) { nodes.push({ x: heli.x, y: heli.y + 10 + i * ROPE_SEG, px: heli.x, py: heli.y + 10 + i * ROPE_SEG }); if (i) segs.push(ROPE_SEG); }
+  persons = []; fallers = []; walkers = []; dead = []; parts = []; saved = 0; lost = 0; releaseCd = 0; crashT = 0; endShown = false; camX = 0;
+  $('hLvl').textContent = LV + 1; $('hNeed').textContent = WORLD.lv.need;
+  say(WORLD.lv.name.toUpperCase());
+}
+function say(s) { msg = s; msgT = 2.2; }
+function hitSolid(x, y) { if (y >= GY) return { ground: true }; for (const s of solids) if (x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h) return s; return null; }
+const keys = {};
+addEventListener('keydown', e => { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); keys[e.code] = true; initAudio(); });
+addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+document.querySelectorAll('#touch button').forEach(b => { const k = b.dataset.k; const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); initAudio(); }; const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); }; b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off); });
+
+function windAt(t) { const w = WORLD.lv.wind; return w ? (Math.sin(t * .35) * .6 + Math.sin(t * 1.3 + 2) * .4) * w : 0; }
+function stepHeli(dt) {
+  const n = persons.length, h = heli;
+  if (h.crashed) { h.vy += 160 * dt; h.vx *= .99; h.x += h.vx * dt; h.y += h.vy * dt; h.spin += dt * 8; if (h.y > GY - 8) { h.y = GY - 8; h.vy = 0; h.vx *= .8; } if (Math.random() < .5) parts.push({ x: h.x + rr(-6, 6), y: h.y, vx: rr(-6, 6), vy: rr(-20, -8), life: rr(1, 2), c: pick([3, 4, 5]), r: rr(2, 4) }); return; }
+  const up = keys.ArrowUp || keys.KeyW || keys.Space, dn = keys.ArrowDown || keys.KeyS, lf = keys.ArrowLeft || keys.KeyA, rt = keys.ArrowRight || keys.KeyD;
+  const ay = 120 + n * 22 - (up ? 270 : 0) + (dn ? 60 : 0);
+  const ax = ((rt ? 1 : 0) - (lf ? 1 : 0)) * 170 / (1 + n * .16);
+  h.vy += ay * dt; h.vx += ax * dt;
+  // a fila puxa o helicóptero em direção ao centro de massa
+  if (n) { let cx = 0; for (const p of persons) cx += nodes[p.f].x; cx /= n; h.vx += (cx - h.x) * .35 * n * dt; }
+  h.vx += windAt(T) * dt * .9;
+  h.vx *= Math.pow(.35, dt); h.vy *= Math.pow(.45, dt);
+  h.vx = clamp(h.vx, -90, 90); h.vy = clamp(h.vy, -70, 85);
+  if (h.landed && !up) { h.vy = 0; h.vx *= .8; }
+  else { h.landed = false; h.x += h.vx * dt; h.y += h.vy * dt; }
+  h.x = clamp(h.x, 16, WORLD.w - 16); if (h.y < 14) { h.y = 14; h.vy = Math.max(0, h.vy); }
+  h.tilt = lerp(h.tilt, clamp(h.vx / 90, -1, 1) * .28, 1 - Math.exp(-6 * dt));
+  // colisão do helicóptero (caixa do corpo e do rotor)
+  const bx = [[-12, -2], [13, -2], [-12, 7], [13, 7], [0, -8], [-14, -8], [16, -8], [-24, 2], [0, 8]];
+  for (const [dx, dy] of bx) { const s = hitSolid(h.x + dx, h.y + dy); if (s && !s.ground) { crash('O helicóptero bateu no prédio!'); return; } }
+  // pouso no chão ou num heliponto
+  const groundY = GY - 9; let pad = null; for (const p of [padStart, padEnd]) if (h.x > p.x0 && h.x < p.x1) pad = p;
+  const floor = pad ? pad.y - 8 : groundY;
+  if (h.y >= floor) { if (h.vy > 75) { crash('Pouso forte demais!'); return; } h.y = floor; h.vy = 0; h.landed = true; }
+}
+function crash(why) {
+  if (heli.crashed) return; heli.crashed = true; heli.vy = -20; SFX.crash(); say(why); crashT = 0;
+  for (let k = 0; k < 30; k++) parts.push({ x: heli.x, y: heli.y, vx: rr(-60, 60), vy: rr(-70, 10), life: rr(.6, 1.6), c: pick([8, 9, 10, 6]), r: rr(1, 3), g: 120 });
+  if (persons.length) detachFrom(0, true);
+}
+function attachPerson(w) {
+  const last = nodes[nodes.length - 1];
+  nodes.push({ x: w.x, y: w.y, px: w.x, py: w.y + 1 }); segs.push(BODY);
+  persons.push({ h: nodes.length - 2, f: nodes.length - 1, grace: .6, ph: Math.random() * 6 });
+  last.x = w.x; last.y = w.y - BODY; w.state = 'gone'; SFX.grab(); say('Pegou!');
+}
+function detachFrom(k, crashFall) {
+  const gone = persons.splice(k);
+  for (const p of gone) { const a = nodes[p.h], b = nodes[p.f]; fallers.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, vx: (b.x - b.px) * 60, vy: (b.y - b.py) * 60, rot: Math.atan2(b.x - a.x, b.y - a.y), spin: rr(-6, 6) }); }
+  nodes.length = ROPE_N + 1 + persons.length; segs.length = nodes.length - 1;
+  if (gone.length) { SFX.scream(); if (!crashFall) say(gone.length > 1 ? `${gone.length} PESSOAS CAÍRAM!` : 'UMA PESSOA CAIU!'); }
+}
+function stepChain(dt) {
+  const h = heli, a = nodes[0], wind = windAt(T) * .5;
+  const ax = h.x + Math.sin(h.tilt) * 4, ay = h.y + 9;
+  a.x = ax; a.y = ay; a.px = ax; a.py = ay;
+  for (let i = 1; i < nodes.length; i++) { const n = nodes[i], vx = (n.x - n.px) * .992, vy = (n.y - n.py) * .992; n.px = n.x; n.py = n.y; n.x += vx + wind * dt * dt * 30; n.y += vy + 260 * dt * dt; }
+  for (let it = 0; it < 12; it++) {
+    for (let i = 0; i < segs.length; i++) { const p = nodes[i], q = nodes[i + 1], dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1e-4, diff = (d - segs[i]) / d; if (i === 0) { q.x -= dx * diff; q.y -= dy * diff; } else { p.x += dx * diff * .5; p.y += dy * diff * .5; q.x -= dx * diff * .5; q.y -= dy * diff * .5; } }
+    for (let i = 1; i < nodes.length; i++) { const n = nodes[i]; if (n.y > GY - 1) { n.y = GY - 1; n.px = n.x - (n.x - n.px) * .5; } }
+  }
+  // corda sem pessoas: empurrada para fora dos prédios
+  for (let i = 1; i <= ROPE_N; i++) { const n = nodes[i], s = hitSolid(n.x, n.y); if (s && !s.ground) { n.y = Math.min(n.y, s.y - .5); } }
+  // pessoas da fila contra os prédios
+  for (let k = 0; k < persons.length; k++) {
+    const p = persons[k]; p.grace -= dt; const A = nodes[p.h], B = nodes[p.f];
+    let killed = false;
+    for (const t of [.25, .6, 1]) { const x = lerp(A.x, B.x, t), y = lerp(A.y, B.y, t), s = hitSolid(x, y); if (!s || s.ground) continue;
+      const vy = (B.y - B.py) / dt, vx = (B.x - B.px) / dt, fromTop = B.py <= s.y + 1.5 && t === 1;
+      if (p.grace > 0 || (fromTop && Math.abs(vx) < 50 && vy < 70)) { B.y = s.y - .2; B.py = B.y; B.px = lerp(B.px, B.x, .5); }
+      else { killed = true; break; } }
+    if (killed) { detachFrom(k, false); SFX.hit(); break; }
+  }
+}
+function stepPeople(dt) {
+  const bottom = nodes[nodes.length - 1];
+  for (const w of waiting) { if (w.state !== 'wait') continue; w.t += dt; const hx = w.x, hy = w.y - 10; if (Math.abs(bottom.x - hx) < 4 && Math.abs(bottom.y - hy) < 5 && !heli.crashed) attachPerson(w); }
+  // entrega no heliponto do hospital
+  releaseCd -= dt;
+  if (persons.length && releaseCd <= 0) { const p = persons[persons.length - 1], B = nodes[p.f]; if (B.x > padEnd.x0 && B.x < padEnd.x1 && B.y >= padEnd.y - 2.5) { persons.pop(); nodes.length--; segs.length--; walkers.push({ x: B.x, y: padEnd.y, t: 0 }); saved++; releaseCd = .35; SFX.save(); say(`SALVO! ${saved}`); } }
+  for (const w of walkers) { w.t += dt; w.x += 18 * dt; }
+  for (let i = walkers.length - 1; i >= 0; i--) if (walkers[i].x > padEnd.x1 + 26) walkers.splice(i, 1);
+  for (let i = fallers.length - 1; i >= 0; i--) { const f = fallers[i]; f.vy += 260 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += f.spin * dt; const s = hitSolid(f.x, f.y + 5); if (s) { const gy = s.ground ? GY : s.y; dead.push({ x: f.x, y: gy, t: 0 }); fallers.splice(i, 1); lost++; SFX.thud(); for (let k = 0; k < 6; k++) parts.push({ x: f.x, y: gy - 1, vx: rr(-30, 30), vy: rr(-40, -10), life: .5, c: 8, r: 1, g: 200 }); } }
+  for (const p of parts) { p.life -= dt; p.vy += (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (!p.g) { p.vx *= .98; p.r += dt * 2; } }
+  parts = parts.filter(p => p.life > 0);
+  for (const f of fires) if (Math.random() < dt * 3) parts.push({ x: f.x + rr(-3, 3), y: f.y - 2, vx: rr(-3, 3) + windAt(T) * .4, vy: rr(-16, -8), life: rr(1.5, 3), c: pick([3, 4, 5]), r: rr(1.5, 3) });
+}
+function checkEnd(dt) {
+  const lv = WORLD.lv;
+  if (heli.crashed) { crashT += dt; if (crashT > 2.4) showEnd(false, 'O helicóptero caiu.'); return; }
+  const onEnd = heli.landed && heli.x > padEnd.x0 && heli.x < padEnd.x1;
+  const left = waiting.filter(w => w.state === 'wait').length;
+  if (onEnd && !persons.length) {
+    if (saved >= lv.need) showEnd(true);
+    else if (saved + left < lv.need) showEnd(false, `Restam pessoas de menos para completar a missão (${saved} salvos de ${lv.need}).`);
+    else if (!heli.warned) { heli.warned = true; say(`FALTAM ${lv.need - saved}! VOLTE`); }
+  } else heli.warned = false;
+  if (!heli.crashed && saved + persons.length + left < lv.need) { if (!heli.doomed) { heli.doomed = true; setTimeout(() => { if (state === 'play') showEnd(false, `Perdeu gente demais: só é possível salvar ${saved + persons.length + left} de ${lv.need}.`); }, 1800); } }
+}
+function showEnd(win, why) {
+  if (endShown) return; endShown = true; state = 'end'; SFX[win ? 'win' : 'lose']();
+  $('eTitle').textContent = win ? 'Missão cumprida' : 'Missão fracassada';
+  $('eText').textContent = win ? `${saved} pessoas no hospital, ${lost} perdidas. ${LV + 1 < LEVELS.length ? 'A próxima fase tem mais gente e mais vento.' : 'Você completou todas as fases.'}` : why;
+  $('eNext').hidden = !win || LV + 1 >= LEVELS.length; $('end').hidden = false; (win && LV + 1 < LEVELS.length ? $('eNext') : $('eRetry')).focus();
+}
+
+/* =====================================================================
+   Desenho
+   ===================================================================== */
+const cv = $('game'), ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+function fit() { const hud = $('hud').offsetHeight || 34, s = Math.min((innerWidth - 8) / W0, (innerHeight - hud - 12) / H0), k = s >= 2 ? Math.floor(s) : Math.max(1, s); cv.style.width = Math.floor(W0 * k) + 'px'; cv.style.height = Math.floor(H0 * k) + 'px'; $('hud').style.width = (Math.floor(W0 * k) - 20 + 4) + 'px'; }
+addEventListener('resize', fit);
+function draw() {
+  const tx = clamp(heli.x - W0 / 2 + heli.vx * .5, 0, WORLD.w - W0); camX = lerp(camX, tx, .12); const cx = Math.round(camX);
+  ctx.drawImage(layers.sky, 0, 0);
+  ctx.drawImage(layers.fuji, -Math.round(cx * .06), 0); ctx.drawImage(layers.far, -Math.round(cx * .22), 0); ctx.drawImage(layers.mid, -Math.round(cx * .5), 0);
+  ctx.drawImage(layers.world, -cx, 0);
+  ctx.save(); ctx.translate(-cx, 0);
+  // fumaça
+  for (const p of parts) { ctx.fillStyle = PAL[p.c]; const r = Math.max(1, Math.round(p.r)); if (r > 1) { ctx.fillRect(Math.round(p.x - r / 2), Math.round(p.y - r / 2), r, r); } else ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+  for (const f of fires) { for (let k = 0; k < 4; k++) { ctx.fillStyle = PAL[(k + Math.floor(T * 12)) % 2 ? 9 : 7]; ctx.fillRect(Math.round(f.x + rr(-3, 3)), Math.round(f.y - rr(1, 5)), 1, 2); } }
+  for (const d of dead) { ctx.drawImage(SPR.dead, Math.round(d.x - 6), Math.round(d.y - 5)); }
+  const f2 = Math.floor(T * 4) % 2;
+  for (const w of waiting) if (w.state === 'wait') { ctx.drawImage(SPR.wave[Math.floor(w.t * 4) % 2], Math.round(w.x - 4), Math.round(w.y - 12)); if (Math.floor(w.t * 2) % 2) { ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(w.x - 1), Math.round(w.y - 19), 2, 4); ctx.fillRect(Math.round(w.x - 1), Math.round(w.y - 14), 2, 1); } }
+  for (const w of walkers) ctx.drawImage(SPR.walk[Math.floor(w.t * 6) % 2], Math.round(w.x - 4), Math.round(w.y - 12));
+  // corda
+  ctx.fillStyle = '#000'; for (let i = 0; i < ROPE_N; i++) drawSeg(nodes[i], nodes[i + 1], '#000', 3);
+  for (let i = 0; i < ROPE_N; i++) drawSeg(nodes[i], nodes[i + 1], '#fff', 1);
+  persons.forEach((p, k) => { const A = nodes[p.h], B = nodes[p.f], ang = Math.atan2(B.x - A.x, B.y - A.y); ctx.save(); ctx.translate(Math.round((A.x + B.x) / 2), Math.round((A.y + B.y) / 2)); ctx.rotate(-ang); ctx.drawImage(SPR.hang[(Math.floor(T * 3 + k) % 2)], -4, -6); ctx.restore(); });
+  for (const f of fallers) { ctx.save(); ctx.translate(Math.round(f.x), Math.round(f.y)); ctx.rotate(f.rot); ctx.drawImage(SPR.fall[Math.floor(T * 10) % 2], -4, -6); ctx.restore(); }
+  // helicóptero
+  ctx.save(); ctx.translate(Math.round(heli.x), Math.round(heli.y)); ctx.rotate(heli.crashed ? heli.spin : heli.tilt); if (heli.vx < -5 && !heli.crashed) ctx.scale(-1, 1); else if (heli.face < 0) ctx.scale(-1, 1);
+  ctx.drawImage(SPR.heli[heli.crashed ? 0 : Math.floor(T * 20) % 2], -16, -11); ctx.restore();
+  if (heli.vx < -5) heli.face = -1; else if (heli.vx > 5) heli.face = 1;
+  ctx.restore();
+  // seta para o hospital e mensagens
+  if (padEnd.x0 - cx > W0 + 10) { const blink = Math.floor(T * 3) % 2; ctx.fillStyle = blink ? '#fff' : PAL[7]; for (let i = 0; i < 5; i++) ctx.fillRect(W0 - 10 + i, 90 - (4 - i), 1, (4 - i) * 2 + 1); }
+  if (msgT > 0) { msgT -= 1 / 60; drawText(msg, W0 / 2, 30); }
+  // vento
+  const w = windAt(T); if (Math.abs(w) > 3) { for (let k = 0; k < 6; k++) { const y = (k * 29 + 13) % 150 + 10, x = ((T * 120 * Math.sign(w) + k * 61) % W0 + W0) % W0; ctx.fillStyle = PAL[8]; ctx.fillRect(Math.round(x), y, Math.round(Math.abs(w) * .5), 1); } }
+}
+function drawSeg(a, b, col, w) { ctx.fillStyle = col; const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)); for (let k = 0; k <= n; k++) { const x = Math.round(lerp(a.x, b.x, k / n)), y = Math.round(lerp(a.y, b.y, k / n)); ctx.fillRect(x - (w >> 1), y - (w >> 1), w, w); } }
+const txtCache = new Map();
+function drawText(s, cx, y) { let c = txtCache.get(s); if (!c) { const g0 = document.createElement('canvas').getContext('2d'); g0.font = '12px DotGothic16, monospace'; const w = Math.ceil(g0.measureText(s).width) + 6; const L = layer(w, 16); const t = document.createElement('canvas'); t.width = w; t.height = 16; const g = t.getContext('2d'); g.font = '12px DotGothic16, "Courier New", monospace'; g.fillStyle = '#fff'; g.textBaseline = 'top'; g.fillText(s, 3, 2); const d = g.getImageData(0, 0, w, 16).data; for (let i = 0; i < w * 16; i++) if (d[i * 4 + 3] > 110) L.d[i] = 10; c = toCanvas(outline(outline(L, 0), 0)); txtCache.set(s, c); } ctx.drawImage(c, Math.round(cx - c.width / 2), y); }
+function hud() { $('hSaved').textContent = saved; $('hRope').textContent = persons.length; $('hLost').textContent = lost; const cap = 6.8; $('loadi').style.width = clamp(persons.length / cap * 68, 0, 68) + 'px'; }
+
+/* =====================================================================
+   Áudio
+   ===================================================================== */
+let AC = null, master, rotorT = 0;
+function initAudio() { if (AC) { if (AC.state === 'suspended') AC.resume(); return; } try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = .5; master.connect(AC.destination); } catch (e) { AC = null; } }
+function nz(dur, vol, freq, type = 'lowpass') { if (!AC) return; const n = Math.max(1, AC.sampleRate * dur | 0), b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2); const s = AC.createBufferSource(); s.buffer = b; const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq; const g = AC.createGain(); g.gain.value = vol; s.connect(f).connect(g).connect(master); s.start(); }
+function tone(fr, dur, type, vol, slide = 0, when = 0) { if (!AC) return; const t = AC.currentTime + when, o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(fr, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, fr + slide), t + dur); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur); o.connect(g).connect(master); o.start(t); o.stop(t + dur + .05); }
+const SCALE = [330, 349, 440, 494, 523, 659, 698, 880];
+const SFX = { grab: () => { tone(523, .08, 'square', .08); tone(659, .12, 'square', .08, 0, .07); }, save: () => { tone(pick(SCALE.slice(3)), .15, 'triangle', .15); }, scream: () => tone(900, .9, 'sawtooth', .07, -700), hit: () => nz(.15, .4, 1200), thud: () => { nz(.2, .5, 300); tone(70, .2, 'sine', .3, -30); }, crash: () => { nz(1.2, .9, 500); tone(60, .8, 'sine', .6, -30); }, win: () => [0, 2, 3, 4, 7].forEach((k, i) => tone(SCALE[k], .3, 'triangle', .18, 0, i * .14)), lose: () => [4, 3, 1, 0].forEach((k, i) => tone(SCALE[k] / 2, .4, 'triangle', .18, 0, i * .2)) };
+function rotorSound(dt) { if (!AC || heli.crashed) return; rotorT -= dt; const up = keys.ArrowUp || keys.KeyW || keys.Space; if (rotorT <= 0) { rotorT = up ? .055 : .075; nz(.05, up ? .16 : .1, up ? 520 : 380); } }
+
+/* =====================================================================
+   Laço
+   ===================================================================== */
+let acc = 0, last = performance.now();
+function step(dt) { T += dt; stepHeli(dt); stepChain(dt); stepPeople(dt); checkEnd(dt); rotorSound(dt); }
+function frame(now) {
+  const el = Math.min(.1, (now - last) / 1000); last = now;
+  if (state === 'play') { acc += el; while (acc >= 1 / 60) { step(1 / 60); acc -= 1 / 60; } }
+  if (WORLD && heli) hud();
+  else if (state === 'end') { T += el; stepPeople(el); }
+  else T += el;
+  if (WORLD) draw();
+  requestAnimationFrame(frame);
+}
+function startLevel() { $('end').hidden = true; $('title').hidden = true; $('touch').hidden = !coarse; resetLevel(); state = 'play'; acc = 0; last = performance.now(); fit(); }
+$('play').onclick = () => { initAudio(); LV = 0; startLevel(); };
+$('eRetry').onclick = () => startLevel();
+$('eNext').onclick = () => { LV = Math.min(LV + 1, LEVELS.length - 1); startLevel(); };
+window.__g = { sim: s => { for (let t = 0; t < s; t += 1 / 60) step(1 / 60); }, keys, get heli() { return heli; }, get persons() { return persons; }, get waiting() { return waiting; }, get nodes() { return nodes; }, get saved() { return saved; }, get lost() { return lost; }, get state() { return state; }, padEnd: () => padEnd, solids, setLevel: l => { LV = l; startLevel(); }, attachPerson, startLevel };
+function boot() { makeSprites(); resetLevel(); fit(); requestAnimationFrame(frame); }
+let booted = false; const go = () => { if (!booted) { booted = true; boot(); } };
+try { document.fonts.load('12px DotGothic16').then(go, go); } catch (e) { go(); } setTimeout(go, 2500);
+})();
+</script>
